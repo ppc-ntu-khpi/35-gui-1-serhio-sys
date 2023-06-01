@@ -1,14 +1,17 @@
 package com.mybank.gui;
 
-import com.mybank.domain.Bank;
-import com.mybank.domain.CheckingAccount;
-import com.mybank.domain.Customer;
-import com.mybank.domain.SavingsAccount;
+import com.mybank.data.DataSource;
+import com.mybank.domain.*;
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JEditorPane;
@@ -23,12 +26,14 @@ public class SWINGDemo {
     
     private final JEditorPane log;
     private final JButton show;
+    private final JButton report;
     private final JComboBox clients;
     
     public SWINGDemo() {
         log = new JEditorPane("text/html", "");
-        log.setPreferredSize(new Dimension(250, 150));
+        log.setPreferredSize(new Dimension(350, 150));
         show = new JButton("Show");
+        report = new JButton("Report");
         clients = new JComboBox();
         for (int i=0; i<Bank.getNumberOfCustomers();i++)
         {
@@ -41,23 +46,60 @@ public class SWINGDemo {
         JFrame frame = new JFrame("MyBank clients");
         frame.setLayout(new BorderLayout());
         JPanel cpane = new JPanel();
-        cpane.setLayout(new GridLayout(1, 2));
+        cpane.setLayout(new GridLayout(1, 3));
         
         cpane.add(clients);
         cpane.add(show);
         frame.add(cpane, BorderLayout.NORTH);
         frame.add(log, BorderLayout.CENTER);
-        
+
+        report.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JEditorPane panel = new JEditorPane("text/html", "");
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.append("<center><h1>Customer Report</h1></center>");
+                for (int i = 0;i<Bank.getNumberOfCustomers();i++){
+                    Customer customer = Bank.getCustomer(i);
+                    stringBuilder.append("<h2>"+customer.getFirstName()+" "+customer.getFirstName()+":</h2>");
+                    for (int j = 0; j<customer.getNumberOfAccounts();j++){
+                        Account account = customer.getAccount(j);
+                        String type = account instanceof CheckingAccount?"Checking":"Savings";
+                        stringBuilder.append("Account Type: "+type+"<br>Balance: "+account.getBalance()+"<br>");
+                    }
+                }
+                panel.setText(stringBuilder.toString());
+                panel.setPreferredSize(new Dimension(250,600));
+                JFrame jFrame = new JFrame("Reports");
+                jFrame.setLayout(new BorderLayout());
+                jFrame.add(panel, BorderLayout.CENTER);
+                jFrame.pack();
+                jFrame.setLocationRelativeTo(log);
+                panel.setAutoscrolls(true);
+                jFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                jFrame.setResizable(true);
+                jFrame.setVisible(true);
+            }
+        });
         show.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 Customer current = Bank.getCustomer(clients.getSelectedIndex());
-                String accType = current.getAccount(0)instanceof CheckingAccount?"Checking":"Savings";                
-                String custInfo="<br>&nbsp;<b><span style=\"font-size:2em;\">"+current.getLastName()+", "+
+                StringBuilder custInfo = new StringBuilder();
+                custInfo.append("<br>&nbsp;<b><span style=\"font-size:2em;\">"+current.getLastName()+", "+
                         current.getFirstName()+"</span><br><hr>"+
-                        "&nbsp;<b>Acc Type: </b>"+accType+
-                        "<br>&nbsp;<b>Balance: <span style=\"color:red;\">$"+current.getAccount(0).getBalance()+"</span></b>";
-                log.setText(custInfo);                
+                        "&nbsp;");
+                //Adding to output all accounts
+                for (int i = 0; i < current.getNumberOfAccounts(); i++)
+                {
+                    Account acc = current.getAccount(i);
+                    String accType = current.getAccount(i)instanceof CheckingAccount?"Checking":"Savings";
+                    custInfo.append("<b>Acc Type: </b>"+accType+
+                            "<br>&nbsp;<b>Balance: <span style=\"color:red;\">$"+acc.getBalance()+"</span></b><br>");
+                }
+
+                //Adding to output all accounts
+                log.setText(custInfo.toString());
             }
         });
         
@@ -65,18 +107,20 @@ public class SWINGDemo {
         frame.setLocationRelativeTo(null);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  
         frame.setResizable(false);
-        frame.setVisible(true);        
+        frame.setVisible(true);
+        cpane.add(report);
     }
     
-    public static void main(String[] args) {
-        
-        Bank.addCustomer("John", "Doe");
-        Bank.addCustomer("Fox", "Mulder");
-        Bank.addCustomer("Dana", "Scully");
-        Bank.getCustomer(0).addAccount(new CheckingAccount(2000));
-        Bank.getCustomer(1).addAccount(new SavingsAccount(1000, 3));
-        Bank.getCustomer(2).addAccount(new CheckingAccount(1000, 500));
-        
+    public static void main(String[] args) throws IOException {
+        //File data loading
+        File currentClass = new File(URLDecoder.decode(SWINGDemo.class
+                .getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath(), "UTF-8"));
+        String classDirectory = currentClass.getParent();
+        new DataSource(classDirectory+"\\35-gui-1-serhio-sys\\test.dat").loadData();
+        //File data loading
         SWINGDemo demo = new SWINGDemo();        
         demo.launchFrame();
     }
